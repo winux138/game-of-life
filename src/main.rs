@@ -2,6 +2,7 @@ use macroquad::prelude::*;
 
 const WIDTH: f32 = 900.;
 const HEIGHT: f32 = 600.;
+const CELL_SIZE: usize = 10;
 
 #[derive(Debug)]
 struct Coords {
@@ -36,29 +37,28 @@ impl Map {
             width,
             height,
             cell_size,
-            cells: vec![WHITE; (width / cell_size) * (height / cell_size)].into_boxed_slice(),
+            cells: vec![WHITE; width * height].into_boxed_slice(),
         }
     }
 
-    fn iter_with_coords(&self) -> impl Iterator<Item = (Coords, Color)> {
-        self.cells.iter().enumerate().map(|(i, c)| {
-            (
-                Coords {
-                    x: i % self.width,
-                    y: i / self.width,
-                },
-                *c,
-            )
+    fn iter_cells(&self) -> impl Iterator<Item = Cell> {
+        self.cells.iter().enumerate().map(|(i, c)| Cell {
+            coords: Coords {
+                x: i % self.width,
+                y: i / self.width,
+            },
+            color: *c,
         })
     }
 
     fn draw(&self) {
         clear_background(color_u8!(0x18, 0x18, 0x18, 0xFF));
 
-        self.iter_with_coords()
-            .enumerate()
-            .for_each(|(i, (Coords { x, y }, color))| {
-                // .for_each(|(Coords { x, y }, color)| {
+        self.iter_cells().for_each(
+            |Cell {
+                 coords: Coords { x, y },
+                 color,
+             }| {
                 // SAFETY: Here we work with small number, there will be no loss of precision
                 #[allow(clippy::cast_precision_loss)]
                 draw_rectangle(
@@ -66,10 +66,10 @@ impl Map {
                     (y * self.cell_size) as f32,
                     self.cell_size as f32,
                     self.cell_size as f32,
-                    color_u8!(i as u8, 0, 0, 255),
+                    color,
                 );
-            });
-            println!("num of cells: {}", self.cells.len());
+            },
+        );
     }
 }
 
@@ -79,15 +79,15 @@ async fn main() {
     // - Will be positive
     // - Will fit in a usize (at least with current monitors)
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-    let mut map = Map::new(WIDTH as usize, HEIGHT as usize, 10);
+    let mut map = Map::new(
+        WIDTH as usize / CELL_SIZE,
+        HEIGHT as usize / CELL_SIZE,
+        CELL_SIZE,
+    );
 
     loop {
         request_new_screen_size(WIDTH, HEIGHT);
         map.draw();
-        // draw_line(40.0, 40.0, 100.0, 200.0, 15.0, BLUE);
-        // draw_rectangle(screen_width() / 2.0 - 60.0, 100.0, 120.0, 60.0, GREEN);
-
-        // draw_text("Hello, Macroquad!", 20.0, 20.0, 30.0, DARKGRAY);
 
         next_frame().await
     }
